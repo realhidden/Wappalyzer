@@ -1,7 +1,7 @@
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
-const Browser = require('zombie');
+const Browser = require('../../fakeZombie');
 const Wappalyzer = require('./wappalyzer');
 
 const json = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/apps.json`)));
