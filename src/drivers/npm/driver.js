@@ -1,7 +1,6 @@
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
-const Browser = require('../../fakeZombie');
 const Wappalyzer = require('./wappalyzer');
 
 const json = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/apps.json`)));
@@ -93,6 +92,8 @@ class Driver {
     this.options.htmlMaxCols = parseInt(this.options.htmlMaxCols, 10);
     this.options.htmlMaxRows = parseInt(this.options.htmlMaxRows, 10);
 
+    this.Browser = this.options.browser && this.options.browser === 'puppeteer' ? require('../../puppeteerWrapper') : require('zombie');
+
     this.origPageUrl = url.parse(pageUrl);
     this.analyzedPageUrls = {};
     this.apps = [];
@@ -181,7 +182,7 @@ class Driver {
   }
 
   visit(pageUrl, timerScope, resolve, reject) {
-    const browser = new Browser({
+    const browser = new this.Browser({
       proxy: this.options.proxy,
       silent: true,
       strictSSL: false,
@@ -203,42 +204,50 @@ class Driver {
         if (!this.checkResponse(browser, pageUrl)) {
           resolve();
 
-          return;
+          return Promise.resolve();
         }
       } catch (error) {
         reject(error);
 
-        return;
+        return Promise.resolve();
       }
 
       const headers = getHeaders(browser);
       const html = this.getHtml(browser);
       const scripts = getScripts(browser);
-      const js = this.getJs(browser);
+      const jsRaw = this.getJs(browser);
       const cookies = getCookies(browser);
 
-      this.wappalyzer.analyze(pageUrl, {
-        headers,
-        html,
-        scripts,
-        js,
-        cookies,
-      })
-        .then(() => {
-          const links = Array.prototype.reduce.call(
-            browser.document.getElementsByTagName('a'), (results, link) => {
-              if (link.protocol.match(/https?:/) && link.hostname === this.origPageUrl.hostname && extensions.test(link.pathname)) {
-                link.hash = '';
+      let jsAsync = Promise.resolve(jsRaw);
 
-                results.push(url.parse(link.href));
-              }
+      if (this.options.browser === 'puppeteer') {
+        jsAsync = browser.jsAsync(this.wappalyzer.jsPatterns);
+      }
 
-              return results;
-            }, [],
-          );
+      return jsAsync.then((js) => {
+        this.wappalyzer.analyze(pageUrl, {
+          headers,
+          html,
+          scripts,
+          js,
+          cookies,
+        })
+          .then(() => {
+            const links = Array.prototype.reduce.call(
+              browser.document.getElementsByTagName('a'), (results, link) => {
+                if (link.protocol.match(/https?:/) && link.hostname === this.origPageUrl.hostname && extensions.test(link.pathname)) {
+                  link.hash = '';
 
-          return resolve(links);
-        });
+                  results.push(url.parse(link.href));
+                }
+
+                return results;
+              }, [],
+            );
+
+            return resolve(links);
+          });
+      });
     });
   }
 
