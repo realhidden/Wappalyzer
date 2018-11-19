@@ -146,49 +146,6 @@ class Browser extends EventEmitter {
       })));
       this.document.links = await list.jsonValue();
 
-      // get window props
-      /*
-      const allProperties = await page.evaluate(() => Reflect.ownKeys(window));
-      const customProperties = allProperties.filter(prop => commonProperties.indexOf(prop) === -1);
-
-      for (let i = 0; i < customProperties.length; i++) {
-        const prop = customProperties[i];
-        try {
-          this.window[prop] = await page.evaluate(({ prop }) => {
-            const oldrefs = [];
-            const jsonSafeMe = function (obj, limit) {
-              if (limit > 6) {
-                return null;
-              }
-              oldrefs.push(obj);
-              const newObj = {};
-              for (const key in obj) {
-                if (oldrefs.indexOf(obj[key])!==-1){
-                  continue;
-                }
-                oldrefs.push(obj[key]);
-                if (typeof obj[key] === 'function') {
-                  newObj[key] = jsonSafeMe(obj[key], limit + 1);
-                  continue;
-                }
-                if (typeof obj[key] === 'object') {
-                  newObj[key] = jsonSafeMe(obj[key], limit + 1);
-                  continue;
-                }
-                if ((typeof obj[key] === 'string') || (typeof obj[key] === 'number')) {
-                  newObj[key] = obj[key];
-                }
-              }
-              return newObj;
-            };
-            return jsonSafeMe(window[prop], 0);
-          }, { prop });
-        } catch (e) {
-          console.log(e);
-        }
-      }
-      */
-
       // get cookies
       this.cookies = await page.cookies();
       this.cookies = this.cookies.map((e) => {
