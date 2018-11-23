@@ -188,6 +188,7 @@ class Driver {
       strictSSL: false,
       userAgent: this.options.userAgent,
       waitDuration: this.options.maxWait,
+      puppeteerClusterOptions: this.options.puppeteerClusterOptions
     });
 
     browser.on('authenticate', (auth) => {

@@ -74,7 +74,13 @@ class Browser extends EventEmitter {
         const properties = chain.split('.');
 
         // grab value from window
-        const value = await this.page.evaluate(puppeteerJsEvalFunction, { properties });
+        let value = null;
+
+        try {
+          value = await this.page.evaluate(puppeteerJsEvalFunction, { properties });
+        } catch (err) {
+          this.log(err);
+        }
 
         // check value
         if (value) {
@@ -91,7 +97,7 @@ class Browser extends EventEmitter {
   async visit(visiturl, visitcb) {
     // start cluster
     if (!cluster) {
-      cluster = await Cluster.launch(this.puppeteerClusterOptions);
+      cluster = await Cluster.launch(this.options.puppeteerClusterOptions);
       this.log('Cluster started', 'puppeteer');
       await cluster.task(async ({ page, data: { url, cb, myContext } }) => {
         await myContext.visitInternal(page, url, cb);
