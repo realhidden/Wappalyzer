@@ -1471,6 +1471,14 @@
         "ws": "^5.1.1"
       }
     },
+    "puppeteer-cluster": {
+      "version": "0.12.1",
+      "resolved": "https://registry.npmjs.org/puppeteer-cluster/-/puppeteer-cluster-0.12.1.tgz",
+      "integrity": "sha512-tuF3BJXkU5wHK0v1S//GQuc4vJUnHc9DiqRiZZ5AjN50AnBKV4ZNUwRhuobGd6cOaC6YPTTrYlWdB+wJgQWBmQ==",
+      "requires": {
+        "debug": "^3.1.0"
+      }
+    },
     "read-chunk": {
       "version": "2.1.0",
       "resolved": "https://registry.npmjs.org/read-chunk/-/read-chunk-2.1.0.tgz",

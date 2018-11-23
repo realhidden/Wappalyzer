@@ -3,6 +3,7 @@
     "file-type": "7.4.*",
     "is-svg": "2.1.*",
     "puppeteer": "^1.10.0",
+    "puppeteer-cluster": "^0.12.1",
     "read-chunk": "2.1.*"
   },
   "devDependencies": {

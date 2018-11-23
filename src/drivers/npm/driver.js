@@ -92,7 +92,7 @@ class Driver {
     this.options.htmlMaxCols = parseInt(this.options.htmlMaxCols, 10);
     this.options.htmlMaxRows = parseInt(this.options.htmlMaxRows, 10);
 
-    this.Browser = this.options.browser && this.options.browser === 'puppeteer' ? require('../../puppeteerWrapper') : require('zombie');
+    this.Browser = this.options.browser && this.options.browser === 'puppeteer' ? require('./puppeteerWrapper') : require('zombie');
 
     this.origPageUrl = url.parse(pageUrl);
     this.analyzedPageUrls = {};

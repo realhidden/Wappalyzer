@@ -1,6 +1,5 @@
 const EventEmitter = require('events');
-
-const puppeteer = require('puppeteer');
+const { Cluster } = require('puppeteer-cluster');
 
 /*
 Current needs:
@@ -13,11 +12,30 @@ Current needs:
 - OK - browser.window as window object
  */
 
+let cluster = null;
+
+function puppeteerJsEvalFunction({ properties }) {
+  let value = properties
+    .reduce((parent, property) => (parent && parent[property]
+      ? parent[property] : null), window);
+
+  value = typeof value === 'string' || typeof value === 'number' ? value : !!value;
+  return value;
+}
 
 class Browser extends EventEmitter {
   constructor(options) {
     super();
-    this.options = options;
+    this.options = Object.assign({}, {
+      puppeteerClusterOptions: {
+        concurrency: Cluster.CONCURRENCY_CONTEXT,
+        maxConcurrency: 4,
+        puppeteerOptions: {
+          headless: true,
+          ignoreHTTPSErrors: true,
+        },
+      },
+    }, options);
     this.resources = [];
 
     this.document = {
@@ -30,6 +48,12 @@ class Browser extends EventEmitter {
     this.window = {};
     this.cookies = [];
     this.page = null;
+  }
+
+  log(message, source, type) {
+    if (this.options.debug) {
+      console.log(`[wappalyzer ${type}]`, `[${source}]`, message);
+    }
   }
 
   html() {
@@ -50,14 +74,7 @@ class Browser extends EventEmitter {
         const properties = chain.split('.');
 
         // grab value from window
-        const value = await this.page.evaluate(({ properties }) => {
-          let value = properties
-            .reduce((parent, property) => (parent && parent[property]
-              ? parent[property] : null), window);
-
-          value = typeof value === 'string' || typeof value === 'number' ? value : !!value;
-          return value;
-        }, { properties });
+        const value = await this.page.evaluate(puppeteerJsEvalFunction, { properties });
 
         // check value
         if (value) {
@@ -71,10 +88,21 @@ class Browser extends EventEmitter {
     return js;
   }
 
-  async visit(url, cb) {
-    if (this.options.debug) {
-      console.log(`puppeteer visit: ${url}`);
+  async visit(visiturl, visitcb) {
+    // start cluster
+    if (!cluster) {
+      cluster = await Cluster.launch(this.puppeteerClusterOptions);
+      this.log('Cluster started', 'puppeteer');
+      await cluster.task(async ({ page, data: { url, cb, myContext } }) => {
+        await myContext.visitInternal(page, url, cb);
+      });
     }
+
+    await cluster.queue({ url: visiturl, cb: visitcb, myContext: this });
+  }
+
+  async visitInternal(page, url, cb) {
+    this.log(`Opening: ${url}`, 'puppeteer');
 
     this.resources = [];
     this.document.links = [];
@@ -82,16 +110,7 @@ class Browser extends EventEmitter {
 
     this.window = {};
 
-    let browser = {
-      close: () => null,
-    };
-
     try {
-      browser = await puppeteer.launch({
-        headless: true,
-        ignoreHTTPSErrors: true,
-      });
-      const page = await browser.newPage();
       await page.setRequestInterception(true);
 
       this.page = page;
@@ -126,23 +145,24 @@ class Browser extends EventEmitter {
         }
       });
 
-      // get common properties b4 navigating
-      const commonProperties = await page.evaluate(() => Reflect.ownKeys(window));
-
       // navigate
       await page.setUserAgent(this.options.userAgent);
       try {
         await Promise.race([
-          page.goto(url, { timeout: this.options.waitDuration, waitUntil: 'networkidle2' }).catch((e) => {
-          }),
+          page.goto(url, { timeout: this.options.waitDuration, waitUntil: 'networkidle2' }),
           new Promise(x => setTimeout(x, this.options.waitDuration)),
         ]);
-      } catch (e) {
+      } catch (err) {
+        this.log(err.toString(), 'puppeteer', 'error');
       }
 
       // get links
       const list = await page.evaluateHandle(() => Array.from(document.getElementsByTagName('a')).map(a => ({
-        href: a.href, hostname: a.hostname, pathname: a.pathname, hash: a.hash, protocol: a.protocol,
+        href: a.href,
+        hostname: a.hostname,
+        pathname: a.pathname,
+        hash: a.hash,
+        protocol: a.protocol,
       })));
       this.document.links = await list.jsonValue();
 
@@ -159,8 +179,8 @@ class Browser extends EventEmitter {
       // magic
       try {
         await cb();
-      } catch (errCb) {
-
+      } catch (err) {
+        this.log(err.toString(), 'puppeteer', 'error');
       }
 
       // close the page to free up memory
@@ -168,17 +188,9 @@ class Browser extends EventEmitter {
       this.page = null;
 
       // close everything
-      return await browser.close();
     } catch (err) {
-      try {
-        await browser.close();
-      } catch (err2) {
-
-      }
-      if (this.options.debug) {
-        console.log(`puppeteer error: ${url}`);
-      }
-      return cb(err);
+      this.log(err.toString(), 'puppeteer', 'error');
+      cb(err);
     }
   }
 }
