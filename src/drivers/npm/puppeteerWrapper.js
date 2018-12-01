@@ -162,6 +162,20 @@ class Browser extends EventEmitter {
         this.log(err.toString(), 'puppeteer', 'error');
       }
 
+      // Nothing loaded, really just nothing
+      if (this.resources.length === 0){
+        try {
+          await cb('Nothing loaded...');
+        } catch (err) {
+          this.log(err.toString(), 'puppeteer', 'error');
+        }
+
+        // close the page to free up memory
+        await page.close();
+        this.page = null;
+        return;
+      }
+
       // get links
       const list = await page.evaluateHandle(() => Array.from(document.getElementsByTagName('a')).map(a => ({
         href: a.href,
