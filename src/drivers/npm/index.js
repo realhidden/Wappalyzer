@@ -1,5 +1,6 @@
 const Driver = require('./driver');
 const ZombieBrowser = require('./browsers/zombie');
+const PuppeteerBrowser = require('./browsers/puppeteer');
 
 class Wappalyzer {
   constructor(pageUrl, options) {
@@ -11,6 +12,7 @@ class Wappalyzer {
 
 Wappalyzer.browsers = {
   zombie: ZombieBrowser,
+  puppeteer: PuppeteerBrowser
 };
 
 module.exports = Wappalyzer;

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const Wappalyzer = require('./driver');
-const Browser = require('./browsers/zombie');
+let Browser = require('./browsers/zombie');
 
 const args = process.argv.slice(2);
 
@@ -29,6 +29,10 @@ do {
     options[key] = value;
   }
 } while (arg);
+
+if (options.browser && options.browser === 'puppeteer') {
+  Browser = require('./browsers/puppeteer');
+}
 
 const wappalyzer = new Wappalyzer(Browser, url, options);
 

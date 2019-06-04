@@ -206,7 +206,7 @@ class Driver {
 
     this.timer(`visit start; url: ${pageUrl.href}`, timerScope);
 
-    await browser.visit(pageUrl.href);
+    const closeBrowser = await browser.visit(pageUrl.href);
 
     this.timer(`visit end; url: ${pageUrl.href}`, timerScope);
 
@@ -214,10 +214,16 @@ class Driver {
 
     // Validate response
     if (!browser.statusCode) {
+      if (closeBrowser) {
+        await closeBrowser();
+      }
       return reject(new Error('NO_RESPONSE'));
     }
 
     if (browser.statusCode !== 200) {
+      if (closeBrowser) {
+        await closeBrowser();
+      }
       return reject(new Error('RESPONSE_NOT_OK'));
     }
 
@@ -230,7 +236,13 @@ class Driver {
     const { cookies, headers, scripts } = browser;
 
     const html = processHtml(browser.html, this.options.htmlMaxCols, this.options.htmlMaxRows);
-    const js = processJs(browser.js, this.wappalyzer.jsPatterns);
+    let js = {};
+    if (browser.js) {
+      js = processJs(browser.js, this.wappalyzer.jsPatterns);
+    }
+    if (browser.jsAsync) {
+      js = await browser.jsAsync(this.wappalyzer.jsPatterns);
+    }
 
     await this.wappalyzer.analyze(pageUrl, {
       cookies,
@@ -253,6 +265,9 @@ class Driver {
     );
 
     this.emit('visit', { browser, pageUrl });
+    if (closeBrowser) {
+      await closeBrowser();
+    }
 
     return resolve(reducedLinks);
   }
